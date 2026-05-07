@@ -71,25 +71,33 @@ body.pc-mode {
 
 /* PC모드: 캘린더 + 일정 사이드바 2컬럼 */
 body.pc-mode .pc-layout-wrap {
-  display: grid;
-  grid-template-columns: 1fr 384px;
-  gap: 16px;
+  display: flex;
+  gap: 0;
   align-items: start;
+  position: relative;
 }
 
 @media (max-width: 700px) {
   body.pc-mode .pc-layout-wrap {
-    grid-template-columns: 1fr !important;
+    flex-direction: column !important;
   }
   body.pc-mode .pc-board-col {
     position: static !important;
     max-height: none !important;
+    width: 100% !important;
   }
+  body.pc-mode #calSidebarHandle { display: none !important; }
 }
 
-body.pc-mode .pc-cal-col { min-width: 0; }
+body.pc-mode .pc-cal-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
 
 body.pc-mode .pc-board-col {
+  flex: 0 0 384px;
+  width: 384px;
+  margin-left: 16px;
   position: sticky;
   top: 10px;
   background: var(--bg2);
@@ -99,8 +107,63 @@ body.pc-mode .pc-board-col {
   min-height: calc(100vh - 100px);
   max-height: calc(200vh - 200px);
   overflow-y: auto;
-  transition: min-width 0.25s, max-width 0.25s;
+  box-sizing: border-box;
 }
+
+/* ── 캘린더↔사이드바 사이 리사이즈 핸들 ── */
+#calSidebarHandle {
+  display: none;
+  flex: 0 0 10px;
+  width: 10px;
+  cursor: ew-resize;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg3);
+  border-radius: 4px;
+  margin: 0 4px;
+  transition: background 0.15s;
+  z-index: 5;
+}
+#calSidebarHandle:hover { background: var(--bg4); }
+#calSidebarHandle .handle-bar {
+  width: 4px; height: 40px; border-radius: 2px;
+  background: var(--text3); pointer-events: none;
+}
+body.pc-mode #calSidebarHandle { display: flex; }
+
+/* ── 대시보드 너비(우측) 리사이즈 핸들 ── */
+#dashboardHeightHandle {
+  display: none;
+  position: absolute;
+  right: -14px; top: 0;
+  width: 14px; height: 100%;
+  cursor: ew-resize;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  transition: background 0.15s;
+  z-index: 10;
+}
+#dashboardHeightHandle:hover { background: var(--bg4); }
+body.pc-mode #dashboardHeightHandle { display: flex; }
+
+/* ── 대시보드 높이(하단) 리사이즈 핸들 ── */
+#dashResizeHandle {
+  display: none;
+  width: 100%; height: 14px; cursor: ns-resize;
+  align-items: center; justify-content: center;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; margin-top: 6px; transition: background 0.15s;
+  flex-shrink: 0;
+}
+#dashResizeHandle:hover { background: var(--bg4); }
+#dashResizeHandle .handle-bar { width: 36px; height: 4px; border-radius: 2px; background: var(--text3); pointer-events: none; }
+body.pc-mode #dashResizeHandle { display: flex; }
 
 /* 사이드바 접힌 상태 */
 body.pc-mode .pc-board-col.sidebar-collapsed {
@@ -436,6 +499,25 @@ body.pc-mode .pc-dashboard { display: flex; }
 @media (max-width: 700px) {
   .dash-row-2 { grid-template-columns: 1fr !important; }
 }
+
+/* ── PC 모드 가로 방향(landscape)에서 대시보드 20% 축소 ── */
+@media (orientation: landscape) {
+  body.pc-mode #pcDashboard {
+    font-size: 80%;   /* transform 대신 font-size로 축소 (좌표 깨짐 방지) */
+  }
+}
+
+/* ── 대시보드 리사이즈 ── */
+body.pc-mode #pcDashboard {
+  position: relative;
+  overflow: visible !important;
+  box-sizing: border-box;
+}
+body.pc-mode.resizing-ns,
+body.pc-mode.resizing-ns * { user-select: none !important; cursor: ns-resize !important; }
+body.pc-mode.resizing-ew,
+body.pc-mode.resizing-ew * { user-select: none !important; cursor: ew-resize !important; }
+
 
 /* 대시보드 카드 내용 줄바꿈 허용 */
 .dash-card-body {
@@ -1169,6 +1251,11 @@ body.pc-mode .vacation-tag {
     </div>
   </div>
 
+  <!-- ── 캘린더↔사이드바 리사이즈 핸들 ── -->
+  <div id="calSidebarHandle" title="좌우 드래그 → 사이드바 너비 조절">
+    <div class="handle-bar"></div>
+  </div>
+
   <!-- ══ 오른쪽: 일정 요약 사이드바 (PC모드) ══ -->
   <div class="pc-board-col" id="pcBoardCol">
     <div class="pc-board-sidebar-header" style="justify-content:space-between;">
@@ -1249,7 +1336,10 @@ body.pc-mode .vacation-tag {
   <!-- 대시보드 토글 헤더 -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
     <span style="font-size:0.78rem;font-weight:800;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;">📊 대시보드</span>
-    <button id="dashToggleBtn" onclick="toggleDashboard()" title="숨기기 / 표시하기" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:50%;width:28px;height:28px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:transform 0.25s,background 0.15s;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">▲</button>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <button id="dashResetSizeBtn" onclick="resetDashSize()" title="크기 초기화" style="background:var(--bg3);border:1px solid var(--border);color:var(--text3);border-radius:8px;padding:3px 9px;font-size:0.68rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.15s;display:none;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">↺ 초기화</button>
+      <button id="dashToggleBtn" onclick="toggleDashboard()" title="숨기기 / 표시하기" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:50%;width:28px;height:28px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:transform 0.25s,background 0.15s;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">▲</button>
+    </div>
   </div>
   <div id="dashContent">
   <div class="dash-row dash-row-2">
@@ -1338,6 +1428,14 @@ body.pc-mode .vacation-tag {
 
   </div>
   </div><!-- end dashContent -->
+  <!-- 높이 리사이즈 핸들 -->
+  <div id="dashResizeHandle" title="위아래 드래그 → 높이 조절" style="display:none;">
+    <div class="handle-bar"></div>
+  </div>
+  <!-- 너비 리사이즈 핸들 (오른쪽) -->
+  <div id="dashboardHeightHandle" title="좌우 드래그 → 너비 조절" style="display:none;position:absolute;right:-14px;top:0;height:100%;width:14px;flex-direction:column;">
+    <div class="handle-bar" style="width:4px;height:40px;"></div>
+  </div>
 </div>
 
 <!-- 푸터 슬로건 -->
@@ -1368,7 +1466,7 @@ body.pc-mode .vacation-tag {
 
 <!-- AI 스케줄 스캔 모달 -->
 <div id="aiScanModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:6000;justify-content:center;align-items:flex-end;padding:0;box-sizing:border-box;" onclick="closeAiScanIfOutside(event)">
-  <div style="background:var(--bg2);border-radius:24px 24px 0 0;width:100%;max-width:520px;margin:0 auto;border:1px solid var(--border);overflow:hidden;max-height:92vh;display:flex;flex-direction:column;">
+  <div style="background:var(--bg2);border-radius:24px 24px 0 0;width:100%;max-width:680px;margin:0 auto;border:1px solid var(--border);overflow:hidden;max-height:92vh;display:flex;flex-direction:column;">
 
     <!-- 헤더 -->
     <div style="background:var(--bg3);padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
@@ -1379,11 +1477,15 @@ body.pc-mode .vacation-tag {
     </div>
 
     <!-- ══ 탭 선택 ══ -->
-    <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;">
       <button id="aiTabSched" onclick="switchAiTab('schedule')"
-        style="flex:1;padding:11px 6px;border:none;background:none;font-size:0.88rem;font-weight:700;color:var(--blue);border-bottom:2px solid var(--blue);cursor:pointer;transition:0.15s;font-family:inherit;">📅 일정 일괄등록</button>
+        style="flex:1;min-width:80px;padding:11px 6px;border:none;background:none;font-size:0.82rem;font-weight:700;color:var(--blue);border-bottom:2px solid var(--blue);cursor:pointer;transition:0.15s;font-family:inherit;white-space:nowrap;">📅 일정</button>
+      <button id="aiTabAnnual" onclick="switchAiTab('annual')"
+        style="flex:1;min-width:80px;padding:11px 6px;border:none;background:none;font-size:0.82rem;font-weight:600;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer;transition:0.15s;font-family:inherit;white-space:nowrap;">🔴 연간점검</button>
+      <button id="aiTabQuart" onclick="switchAiTab('quarterly')"
+        style="flex:1;min-width:80px;padding:11px 6px;border:none;background:none;font-size:0.82rem;font-weight:600;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer;transition:0.15s;font-family:inherit;white-space:nowrap;">🟡 분기점검</button>
       <button id="aiTabVac" onclick="switchAiTab('vacation')"
-        style="flex:1;padding:11px 6px;border:none;background:none;font-size:0.88rem;font-weight:600;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer;transition:0.15s;font-family:inherit;">🏖️ 연차 일괄등록</button>
+        style="flex:1;min-width:80px;padding:11px 6px;border:none;background:none;font-size:0.82rem;font-weight:600;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer;transition:0.15s;font-family:inherit;white-space:nowrap;">🏖️ 연차</button>
     </div>
 
     <div style="overflow-y:auto;flex:1;">
@@ -1416,6 +1518,54 @@ body.pc-mode .vacation-tag {
         </div>
         <div id="aiSchedRegisterWrap" style="display:none;margin-top:8px;">
           <button id="aiSchedRegisterBtn" onclick="registerAiSchedResults()" style="width:100%;background:var(--blue);color:white;border:none;border-radius:10px;padding:13px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">📥 일정 전체 등록</button>
+        </div>
+      </div>
+
+      <!-- ══ 연간점검 일괄등록 패널 ══ -->
+      <div id="aiAnnualPanel" style="display:none;padding:16px 20px 20px;">
+        <div style="background:rgba(232,84,58,0.08);border:1px solid rgba(232,84,58,0.25);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-size:0.76rem;color:var(--text3);line-height:1.8;">
+          <div style="font-weight:800;color:#ff8a76;margin-bottom:4px;">🔴 연간점검 일괄등록 — 한 줄에 하나씩</div>
+          <div>날짜: <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;">5/12</code> <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;">5.12</code> &nbsp; 범위: <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;">5/13~5/15</code></div>
+          <div style="margin-top:4px;color:var(--text2);">예) <em>5/20 변압기 연간점검</em> &nbsp; <em>6/3~6/5 수전설비 점검</em></div>
+          <div style="margin-top:3px;font-size:0.72rem;color:var(--text3);">※ 종류는 자동으로 <strong style="color:#ff8a76;">연간점검</strong>으로 등록됩니다</div>
+        </div>
+        <textarea id="aiAnnualInput" placeholder="5/20 변압기 연간점검&#10;6/3 수전설비 점검&#10;7/10~7/12 배전반 연간점검" rows="7"
+          style="width:100%;background:var(--bg3);border:1px solid rgba(232,84,58,0.3);border-radius:12px;padding:12px 14px;font-size:0.88rem;color:var(--text);outline:none;font-family:inherit;resize:vertical;line-height:1.8;box-sizing:border-box;"></textarea>
+        <div id="aiAnnualResultWrap" style="display:none;margin-top:12px;">
+          <div style="font-size:0.8rem;color:var(--text3);margin-bottom:8px;font-weight:600;">✅ 아래 내용을 확인하고 등록하세요</div>
+          <div id="aiAnnualResultList" style="display:flex;flex-direction:column;gap:7px;"></div>
+        </div>
+        <div id="aiAnnualError" style="display:none;background:rgba(232,84,58,0.1);border:1px solid rgba(232,84,58,0.3);border-radius:10px;padding:12px;color:#ff8a76;font-size:0.85rem;margin-top:10px;"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button onclick="clearAiAnnual()" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:10px;padding:12px;font-size:0.88rem;cursor:pointer;font-family:inherit;font-weight:600;">🗑️ 초기화</button>
+          <button onclick="runAiAnnualParse()" style="flex:2;background:#e8543a;color:white;border:none;border-radius:10px;padding:12px;font-size:0.92rem;font-weight:700;cursor:pointer;font-family:inherit;">📋 파싱 &amp; 미리보기</button>
+        </div>
+        <div id="aiAnnualRegisterWrap" style="display:none;margin-top:8px;">
+          <button id="aiAnnualRegisterBtn" onclick="registerAiAnnualResults()" style="width:100%;background:#e8543a;color:white;border:none;border-radius:10px;padding:13px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">📥 연간점검 전체 등록</button>
+        </div>
+      </div>
+
+      <!-- ══ 분기점검 일괄등록 패널 ══ -->
+      <div id="aiQuartPanel" style="display:none;padding:16px 20px 20px;">
+        <div style="background:rgba(255,179,64,0.08);border:1px solid rgba(255,179,64,0.3);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-size:0.76rem;color:var(--text3);line-height:1.8;">
+          <div style="font-weight:800;color:var(--amber);margin-bottom:4px;">🟡 분기점검 일괄등록 — 한 줄에 하나씩</div>
+          <div>날짜: <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;">5/12</code> <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;">5.12</code> &nbsp; 범위: <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;">5/13~5/15</code></div>
+          <div style="margin-top:4px;color:var(--text2);">예) <em>5/8 분전반 분기점검</em> &nbsp; <em>8/14~8/16 비상발전기 점검</em></div>
+          <div style="margin-top:3px;font-size:0.72rem;color:var(--text3);">※ 종류는 자동으로 <strong style="color:var(--amber);">분기점검</strong>으로 등록됩니다</div>
+        </div>
+        <textarea id="aiQuartInput" placeholder="5/8 분전반 분기점검&#10;8/14 비상발전기 점검&#10;11/6~11/8 소방설비 분기점검" rows="7"
+          style="width:100%;background:var(--bg3);border:1px solid rgba(255,179,64,0.35);border-radius:12px;padding:12px 14px;font-size:0.88rem;color:var(--text);outline:none;font-family:inherit;resize:vertical;line-height:1.8;box-sizing:border-box;"></textarea>
+        <div id="aiQuartResultWrap" style="display:none;margin-top:12px;">
+          <div style="font-size:0.8rem;color:var(--text3);margin-bottom:8px;font-weight:600;">✅ 아래 내용을 확인하고 등록하세요</div>
+          <div id="aiQuartResultList" style="display:flex;flex-direction:column;gap:7px;"></div>
+        </div>
+        <div id="aiQuartError" style="display:none;background:rgba(255,179,64,0.1);border:1px solid rgba(255,179,64,0.3);border-radius:10px;padding:12px;color:var(--amber);font-size:0.85rem;margin-top:10px;"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button onclick="clearAiQuart()" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:10px;padding:12px;font-size:0.88rem;cursor:pointer;font-family:inherit;font-weight:600;">🗑️ 초기화</button>
+          <button onclick="runAiQuartParse()" style="flex:2;background:var(--amber);color:#1a1a1e;border:none;border-radius:10px;padding:12px;font-size:0.92rem;font-weight:700;cursor:pointer;font-family:inherit;">📋 파싱 &amp; 미리보기</button>
+        </div>
+        <div id="aiQuartRegisterWrap" style="display:none;margin-top:8px;">
+          <button id="aiQuartRegisterBtn" onclick="registerAiQuartResults()" style="width:100%;background:var(--amber);color:#1a1a1e;border:none;border-radius:10px;padding:13px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">📥 분기점검 전체 등록</button>
         </div>
       </div>
 
@@ -3547,29 +3697,144 @@ let _aiVacParsedItems = [];
 
 // ══ AI등록 탭 전환 ══
 function switchAiTab(tab) {
-  const schedPanel = document.getElementById('aiSchedPanel');
-  const vacPanel   = document.getElementById('aiVacPanel');
-  const tabSched   = document.getElementById('aiTabSched');
-  const tabVac     = document.getElementById('aiTabVac');
-  if (tab === 'schedule') {
-    schedPanel.style.display = '';
-    vacPanel.style.display   = 'none';
-    tabSched.style.color = 'var(--blue)';
-    tabSched.style.borderBottomColor = 'var(--blue)';
-    tabSched.style.fontWeight = '700';
-    tabVac.style.color = 'var(--text3)';
-    tabVac.style.borderBottomColor = 'transparent';
-    tabVac.style.fontWeight = '600';
-  } else {
-    schedPanel.style.display = 'none';
-    vacPanel.style.display   = '';
-    tabVac.style.color = 'var(--accent2)';
-    tabVac.style.borderBottomColor = 'var(--accent2)';
-    tabVac.style.fontWeight = '700';
-    tabSched.style.color = 'var(--text3)';
-    tabSched.style.borderBottomColor = 'transparent';
-    tabSched.style.fontWeight = '600';
+  const panels = {
+    schedule: 'aiSchedPanel',
+    annual:   'aiAnnualPanel',
+    quarterly:'aiQuartPanel',
+    vacation: 'aiVacPanel'
+  };
+  const tabs = {
+    schedule: 'aiTabSched',
+    annual:   'aiTabAnnual',
+    quarterly:'aiTabQuart',
+    vacation: 'aiTabVac'
+  };
+  const colors = {
+    schedule: 'var(--blue)',
+    annual:   '#ff8a76',
+    quarterly:'var(--amber)',
+    vacation: 'var(--accent2)'
+  };
+  Object.keys(panels).forEach(key => {
+    const panel = document.getElementById(panels[key]);
+    const tabEl = document.getElementById(tabs[key]);
+    if (!panel || !tabEl) return;
+    const active = key === tab;
+    panel.style.display = active ? '' : 'none';
+    tabEl.style.color = active ? colors[key] : 'var(--text3)';
+    tabEl.style.borderBottomColor = active ? colors[key] : 'transparent';
+    tabEl.style.fontWeight = active ? '700' : '600';
+  });
+}
+
+// ── 연간점검 일괄등록 ──
+let _aiAnnualParsedItems = [];
+
+function clearAiAnnual() {
+  document.getElementById('aiAnnualInput').value = '';
+  document.getElementById('aiAnnualResultWrap').style.display = 'none';
+  document.getElementById('aiAnnualResultList').innerHTML = '';
+  document.getElementById('aiAnnualRegisterWrap').style.display = 'none';
+  document.getElementById('aiAnnualError').style.display = 'none';
+  _aiAnnualParsedItems = [];
+}
+
+function runAiAnnualParse() {
+  const raw = (document.getElementById('aiAnnualInput').value || '').trim();
+  const errorEl = document.getElementById('aiAnnualError');
+  errorEl.style.display = 'none';
+  document.getElementById('aiAnnualResultWrap').style.display = 'none';
+  document.getElementById('aiAnnualRegisterWrap').style.display = 'none';
+  if (!raw) { alert('연간점검 내용을 입력해주세요.'); return; }
+  _aiAnnualParsedItems = parseTextToItems(raw).map(i => ({ ...i, category: 'schedule', type: '연간점검' }));
+  if (_aiAnnualParsedItems.length === 0) {
+    errorEl.textContent = '❌ 인식된 항목이 없습니다. 형식을 확인해주세요.';
+    errorEl.style.display = ''; return;
   }
+  showAiBulkResults(_aiAnnualParsedItems, 'aiAnnualResultList', 'aiAnnualRegisterWrap', 'aiAnnualRegisterBtn', 'removeAiAnnualItem', '📥 연간점검 전체 등록');
+  document.getElementById('aiAnnualResultWrap').style.display = '';
+}
+
+function removeAiAnnualItem(idx) {
+  _aiAnnualParsedItems.splice(idx, 1);
+  showAiBulkResults(_aiAnnualParsedItems, 'aiAnnualResultList', 'aiAnnualRegisterWrap', 'aiAnnualRegisterBtn', 'removeAiAnnualItem', '📥 연간점검 전체 등록');
+  document.getElementById('aiAnnualResultWrap').style.display = '';
+}
+
+async function registerAiAnnualResults() {
+  const valid = _aiAnnualParsedItems.filter(i => i.date && !i._parseError);
+  if (valid.length === 0) return;
+  const btn = document.getElementById('aiAnnualRegisterBtn');
+  btn.disabled = true; btn.textContent = '등록 중...';
+  const apiReady = await waitForVacationAPI(5000);
+  let success = 0, fail = 0;
+  for (const item of valid) {
+    const entry = { name: item.name, type: '연간점검', img: '', memo: item.memo || '' };
+    try {
+      if (apiReady && window._vacationAPI) await window._vacationAPI.saveVacation(item.date, entry);
+      else localSaveVacation(item.date, entry);
+      success++;
+    } catch(e) { try { localSaveVacation(item.date, entry); success++; } catch(e2) { fail++; } }
+  }
+  btn.disabled = false; btn.textContent = `📥 연간점검 전체 등록 (${valid.length}건)`;
+  alert(`✅ 연간점검 ${success}건 등록 완료${fail > 0 ? ` (${fail}건 실패)` : ''}!`);
+  closeAiScan();
+  if (typeof window.renderCalendar === 'function') window.renderCalendar();
+}
+
+// ── 분기점검 일괄등록 ──
+let _aiQuartParsedItems = [];
+
+function clearAiQuart() {
+  document.getElementById('aiQuartInput').value = '';
+  document.getElementById('aiQuartResultWrap').style.display = 'none';
+  document.getElementById('aiQuartResultList').innerHTML = '';
+  document.getElementById('aiQuartRegisterWrap').style.display = 'none';
+  document.getElementById('aiQuartError').style.display = 'none';
+  _aiQuartParsedItems = [];
+}
+
+function runAiQuartParse() {
+  const raw = (document.getElementById('aiQuartInput').value || '').trim();
+  const errorEl = document.getElementById('aiQuartError');
+  errorEl.style.display = 'none';
+  document.getElementById('aiQuartResultWrap').style.display = 'none';
+  document.getElementById('aiQuartRegisterWrap').style.display = 'none';
+  if (!raw) { alert('분기점검 내용을 입력해주세요.'); return; }
+  _aiQuartParsedItems = parseTextToItems(raw).map(i => ({ ...i, category: 'schedule', type: '분기점검' }));
+  if (_aiQuartParsedItems.length === 0) {
+    errorEl.textContent = '❌ 인식된 항목이 없습니다. 형식을 확인해주세요.';
+    errorEl.style.display = ''; return;
+  }
+  showAiBulkResults(_aiQuartParsedItems, 'aiQuartResultList', 'aiQuartRegisterWrap', 'aiQuartRegisterBtn', 'removeAiQuartItem', '📥 분기점검 전체 등록');
+  document.getElementById('aiQuartResultWrap').style.display = '';
+}
+
+function removeAiQuartItem(idx) {
+  _aiQuartParsedItems.splice(idx, 1);
+  showAiBulkResults(_aiQuartParsedItems, 'aiQuartResultList', 'aiQuartRegisterWrap', 'aiQuartRegisterBtn', 'removeAiQuartItem', '📥 분기점검 전체 등록');
+  document.getElementById('aiQuartResultWrap').style.display = '';
+}
+
+async function registerAiQuartResults() {
+  const valid = _aiQuartParsedItems.filter(i => i.date && !i._parseError);
+  if (valid.length === 0) return;
+  const btn = document.getElementById('aiQuartRegisterBtn');
+  btn.disabled = true; btn.textContent = '등록 중...';
+  const apiReady = await waitForVacationAPI(5000);
+  let success = 0, fail = 0;
+  for (const item of valid) {
+    const entry = { name: item.name, type: '분기점검', img: '', memo: item.memo || '' };
+    try {
+      if (apiReady && window._vacationAPI) await window._vacationAPI.saveVacation(item.date, entry);
+      else localSaveVacation(item.date, entry);
+      success++;
+    } catch(e) { try { localSaveVacation(item.date, entry); success++; } catch(e2) { fail++; } }
+  }
+  btn.disabled = false; btn.textContent = `📥 분기점검 전체 등록 (${valid.length}건)`;
+  alert(`✅ 분기점검 ${success}건 등록 완료${fail > 0 ? ` (${fail}건 실패)` : ''}!`);
+  closeAiScan();
+  if (typeof window.renderCalendar === 'function') window.renderCalendar();
 }
 
 // ── 일정 일괄등록 ──
@@ -4395,7 +4660,154 @@ function startFooterClock() {
   tick();
   _clockTimer = setInterval(tick, 1000);
 }
+
+// ══════════════════════════════════════════
+// 통합 리사이즈 시스템
+// ══════════════════════════════════════════
+(function() {
+  'use strict';
+
+  // ── localStorage 키 ──
+  const KEYS = {
+    sidebarW:  'resize_sidebarW',
+    dashH:     'resize_dashH',
+    dashW:     'resize_dashW',
+  };
+
+  const MIN = { sidebarW: 200, dashH: 120, dashW: 300 };
+  const MAX = { dashH: 2000 };
+
+  // ── 드래그 상태 ──
+  let drag = null;
+  // drag = { type: 'sidebarW'|'dashH'|'dashW', startX, startY, startSize }
+
+  function cl(add, ...cls) { cls.forEach(c => document.body.classList[add ? 'add' : 'remove'](c)); }
+
+  // ── 각 요소 getter ──
+  const $ = id => document.getElementById(id);
+
+  function getSidebarW() {
+    const col = $('pcBoardCol');
+    return col ? col.getBoundingClientRect().width : 384;
+  }
+  function getDashH() {
+    const c = $('dashContent');
+    return c ? c.getBoundingClientRect().height : 400;
+  }
+  function getDashW() {
+    const d = $('pcDashboard');
+    return d ? d.getBoundingClientRect().width : 800;
+  }
+
+  // ── 적용 ──
+  function applySidebarW(w) {
+    const col = $('pcBoardCol'); if (!col) return;
+    const capped = Math.max(MIN.sidebarW, w);
+    col.style.flex = `0 0 ${capped}px`;
+    col.style.width = `${capped}px`;
+  }
+  function applyDashH(h) {
+    const c = $('dashContent'); if (!c) return;
+    const capped = Math.min(MAX.dashH, Math.max(MIN.dashH, h));
+    c.style.maxHeight = capped + 'px';
+    c.style.overflowY = 'auto';
+  }
+  function applyDashW(w) {
+    const d = $('pcDashboard'); if (!d) return;
+    const maxW = d.parentElement ? d.parentElement.getBoundingClientRect().width : 1400;
+    const capped = Math.min(maxW, Math.max(MIN.dashW, w));
+    d.style.width = capped + 'px';
+    d.style.maxWidth = '100%';
+  }
+  function showReset(v) {
+    const b = $('dashResetSizeBtn'); if (b) b.style.display = v ? 'inline-block' : 'none';
+  }
+
+  // ── 저장/로드 ──
+  function save(key, val) { try { localStorage.setItem(key, val); } catch(e) {} }
+  function load(key) { try { const v = localStorage.getItem(key); return v ? +v : null; } catch(e) { return null; } }
+
+  function loadAll() {
+    const sw = load(KEYS.sidebarW), dh = load(KEYS.dashH), dw = load(KEYS.dashW);
+    if (sw) applySidebarW(sw);
+    if (dh) { applyDashH(dh); showReset(true); }
+    if (dw) { applyDashW(dw); showReset(true); }
+  }
+
+  // ── 초기화 버튼 ──
+  window.resetDashSize = function() {
+    const d = $('pcDashboard'), c = $('dashContent');
+    if (d) { d.style.width = ''; d.style.maxWidth = ''; }
+    if (c) { c.style.maxHeight = ''; c.style.overflowY = ''; }
+    try { localStorage.removeItem(KEYS.dashH); localStorage.removeItem(KEYS.dashW); } catch(e) {}
+    showReset(false);
+  };
+
+  // ── 포인터 좌표 ──
+  function cx(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
+  function cy(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
+
+  // ── mousedown / touchstart ──
+  function startDrag(type, e) {
+    drag = { type, startX: cx(e), startY: cy(e), startSize: 0 };
+    if (type === 'sidebarW') { drag.startSize = getSidebarW(); cl(true, 'resizing-ew'); }
+    if (type === 'dashH')    { drag.startSize = getDashH();    cl(true, 'resizing-ns'); }
+    if (type === 'dashW')    { drag.startSize = getDashW();    cl(true, 'resizing-ew'); }
+    e.preventDefault(); e.stopPropagation();
+  }
+
+  // ── mousemove / touchmove ──
+  function onMove(e) {
+    if (!drag) return;
+    const dx = cx(e) - drag.startX;
+    const dy = cy(e) - drag.startY;
+    if (drag.type === 'sidebarW') applySidebarW(drag.startSize + dx);
+    if (drag.type === 'dashH')    applyDashH(drag.startSize + dy);
+    if (drag.type === 'dashW')    { applyDashW(drag.startSize + dx); showReset(true); }
+  }
+
+  // ── mouseup / touchend ──
+  function onUp() {
+    if (!drag) return;
+    if (drag.type === 'sidebarW') { const col = $('pcBoardCol'); if (col) save(KEYS.sidebarW, parseInt(col.style.width)); }
+    if (drag.type === 'dashH')    { const c = $('dashContent'); if (c && c.style.maxHeight) { save(KEYS.dashH, parseInt(c.style.maxHeight)); showReset(true); } }
+    if (drag.type === 'dashW')    { const d = $('pcDashboard'); if (d && d.style.width) save(KEYS.dashW, parseInt(d.style.width)); }
+    cl(false, 'resizing-ns', 'resizing-ew');
+    drag = null;
+  }
+
+  // ── 전역 이벤트 ──
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchmove', function(e) { if (drag) { e.preventDefault(); onMove(e); } }, { passive: false });
+  document.addEventListener('touchend', onUp);
+
+  // ── DOM 준비 후 핸들 바인딩 ──
+  document.addEventListener('DOMContentLoaded', function() {
+    loadAll();
+
+    // 사이드바 너비 핸들
+    const hSidebar = $('calSidebarHandle');
+    if (hSidebar) {
+      hSidebar.addEventListener('mousedown', e => startDrag('sidebarW', e));
+      hSidebar.addEventListener('touchstart', e => startDrag('sidebarW', e), { passive: false });
+    }
+
+    // 대시보드 높이 핸들
+    const hDashH = $('dashResizeHandle');
+    if (hDashH) {
+      hDashH.addEventListener('mousedown', e => startDrag('dashH', e));
+      hDashH.addEventListener('touchstart', e => startDrag('dashH', e), { passive: false });
+    }
+
+    // 대시보드 너비 핸들 (dashboardHeightHandle은 dashW용으로 재사용)
+    const hDashW = $('dashboardHeightHandle');
+    if (hDashW) {
+      hDashW.addEventListener('mousedown', e => startDrag('dashW', e));
+      hDashW.addEventListener('touchstart', e => startDrag('dashW', e), { passive: false });
+    }
+  });
+})();
 </script>
 </body>
 </html>
- 
